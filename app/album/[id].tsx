@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from '../../components/MusicProvider';
 
 interface Track {
-    id: string;
+    id: number;
     title: string;
     artist: string;
     url: string;
@@ -13,7 +13,7 @@ interface Track {
 }
 
 interface Album {
-    id: string;
+    id: number;
     title: string;
     artist: string;
     coverImage: string;
@@ -24,11 +24,22 @@ interface Album {
 export default function AlbumDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
-    const { albums, playAlbum, activeAlbum, isPlaying } = useMusic();
+    const {
+      albums,
+      playAlbum,
+      activeAlbum,
+      currentTrack,
+      playTrack,
+      pauseTrack,
+      nextTrack,
+      previousTrack,
+      isPlaying
+    } = useMusic();
+
     const [album, setAlbum] = useState<Album | null>(null);
 
     useEffect(() => {
-        const foundAlbum = albums.find(a => a.id === id);
+        const foundAlbum = albums.find(a => a.id === Number(id));
         setAlbum(foundAlbum || null);
     }, [id, albums]);
 
@@ -42,9 +53,16 @@ export default function AlbumDetails() {
 
     const isCurrentAlbum = activeAlbum?.id === album.id;
 
-    const handlePlayAlbum = () => {
-        playAlbum(album);
-        router.push('/(tabs)/player');
+    const handlePlayPress = () => {
+    if (isCurrentAlbum) {
+            if (isPlaying) {
+                pauseTrack();
+            } else {
+                playTrack();
+            }
+        } else {
+            playAlbum(album);
+        }
     };
 
     const formatDuration = (seconds: number) => {
@@ -53,21 +71,65 @@ export default function AlbumDetails() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const renderTrack = ({ item, index }: { item: Track; index: number }) => (
-        <View style={styles.trackItem}>
-            <View style={styles.trackNumber}>
-                <Text style={styles.trackNumberText}>{index + 1}</Text>
-            </View>
-            <View style={styles.trackInfo}>
-                <Text style={styles.trackTitle}>{item.title}</Text>
-                <Text style={styles.trackArtist}>{item.artist}</Text>
-            </View>
-            <Text style={styles.trackDuration}>{formatDuration(item.duration)}</Text>
+    const isLastTrack = () => {
+        if (!currentTrack || !activeAlbum) return false;
+        const lastTrack = activeAlbum.tracks[activeAlbum.tracks.length - 1];
+        return currentTrack.id === lastTrack.id;
+    };
+
+    const isFirstTrack = () => {
+        if (!currentTrack || !activeAlbum) return false;
+        const firstTrack = activeAlbum.tracks[0];
+        return currentTrack.id === firstTrack.id;
+    };
+
+    const renderTrack = ({ item, index }: { item: Track; index: number }) => {
+      const isCurrentTrack = currentTrack?.id === item.id;
+    
+      const content = (
+        <View
+          style={[
+            styles.trackItem,
+            isCurrentTrack ? styles.activeTrackItem : null,
+          ]}
+        >
+          <View style={styles.trackNumber}>
+            <Text style={[
+              styles.trackNumberText,
+              isCurrentTrack ? styles.activeTrackText : null,
+            ]}>{index + 1}</Text>
+          </View>
+          <View style={styles.trackInfo}>
+            <Text style={[
+              styles.trackTitle,
+              isCurrentTrack ? styles.activeTrackText : null,
+            ]}>{item.title}</Text>
+            <Text style={[
+              styles.trackArtist,
+              isCurrentTrack ? styles.activeTrackText : null,
+            ]}>{item.artist}</Text>
+          </View>
+          <Text style={[
+            styles.trackDuration,
+            isCurrentTrack ? styles.activeTrackText : null,
+          ]}>{formatDuration(item.duration)}</Text>
         </View>
-    );
+      );
+    
+      if (isCurrentTrack) {
+        return (
+          <TouchableOpacity onPress={() => router.push('/(tabs)/player')}>
+            {content}
+          </TouchableOpacity>
+        );
+      }
+    
+      return content;
+    };
 
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* Header + Playback controls */}
             <View style={styles.header}>
                 <Image source={{ uri: album.coverImage }} style={styles.albumCover} />
                 <View style={styles.albumInfo}>
@@ -75,32 +137,54 @@ export default function AlbumDetails() {
                     <Text style={styles.albumArtist}>{album.artist}</Text>
                     <Text style={styles.trackCount}>{album.tracks.length} tracks</Text>
 
-                    <TouchableOpacity onPress={handlePlayAlbum} style={styles.playButton}>
-                        <Ionicons
-                            name={isCurrentAlbum && isPlaying ? "pause" : "play"}
-                            size={24}
-                            color="white"
-                        />
-                        <Text style={styles.playButtonText}>
-                            {isCurrentAlbum && isPlaying ? 'Pause' : 'Play'}
-                        </Text>
-                    </TouchableOpacity>
+                    {/* Playback Controls from ActiveAlbum */}
+                    <View style={styles.controls}>
+                        <TouchableOpacity
+                            onPress={() => previousTrack()}
+                            style={[styles.controlButton, isFirstTrack() && styles.disabledButton]}
+                            disabled={isFirstTrack()}
+                        >
+                            <Ionicons name="play-skip-back" size={32} color="#333" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={handlePlayPress}
+                          style={[styles.controlButton, styles.playButton]}
+                        >
+                            <Ionicons
+                              name={isPlaying && isCurrentAlbum ? 'pause' : 'play'}
+                              size={32}
+                              color="#fff"
+                            />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => nextTrack()}
+                            style={[styles.controlButton, isLastTrack() && styles.disabledButton]}
+                            disabled={isLastTrack()}
+                        >
+                            <Ionicons name="play-skip-forward" size={32} color="#333" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
 
+            {/* Description */}
             <View style={styles.description}>
                 <Text style={styles.descriptionTitle}>Description</Text>
                 <Text style={styles.descriptionText}>{album.description}</Text>
             </View>
 
+            {/* Track list */}
             <Text style={styles.tracksTitle}>Tracks</Text>
             <FlatList
                 data={album.tracks}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={renderTrack}
                 style={styles.tracksList}
+                scrollEnabled={false}
             />
-        </View>
+        </ScrollView>
     );
 }
 
@@ -108,6 +192,8 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+        paddingTop: 40,
+        paddingHorizontal: 20,
     },
     centered: {
         justifyContent: 'center',
@@ -115,9 +201,10 @@ const styles = StyleSheet.create({
     },
     header: {
         flexDirection: 'row',
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        marginBottom: 20,
+    },
+    disabledButton: {
+        opacity: 0.5,
     },
     albumCover: {
         width: 120,
@@ -144,25 +231,24 @@ const styles = StyleSheet.create({
         color: '#999',
         marginBottom: 16,
     },
-    playButton: {
+    controls: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#007AFF',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
-        alignSelf: 'flex-start',
+        gap: 20,
     },
-    playButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-        marginLeft: 8,
+    controlButton: {
+        padding: 10,
+    },
+    playButton: {
+        backgroundColor: '#007AFF',
+        borderRadius: 40,
+        padding: 16,
     },
     description: {
-        padding: 20,
+        marginBottom: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
+        paddingBottom: 20,
     },
     descriptionTitle: {
         fontSize: 18,
@@ -177,19 +263,20 @@ const styles = StyleSheet.create({
     tracksTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        padding: 20,
-        paddingBottom: 10,
+        marginBottom: 10,
     },
     tracksList: {
-        flex: 1,
+        // no flex: 1 since inside ScrollView
     },
     trackItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
         paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#f0f0f0',
+    },
+    activeTrackItem: {
+        backgroundColor: '#e6f0ff',
     },
     trackNumber: {
         width: 30,
@@ -198,6 +285,10 @@ const styles = StyleSheet.create({
     trackNumberText: {
         fontSize: 16,
         color: '#666',
+    },
+    activeTrackText: {
+        color: '#007AFF',
+        fontWeight: '600',
     },
     trackInfo: {
         flex: 1,

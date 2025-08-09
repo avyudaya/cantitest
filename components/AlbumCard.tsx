@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from './MusicProvider';
 
 interface Album {
-    id: string;
+    id: number;
     title: string;
     artist: string;
     coverImage: string;
@@ -18,17 +18,26 @@ interface AlbumCardProps {
 }
 
 export const AlbumCard: React.FC<AlbumCardProps> = ({ album }) => {
-    const { playAlbum, activeAlbum, isPlaying } = useMusic();
+    const { playAlbum, activeAlbum, isPlaying, pauseTrack, playTrack } = useMusic();
     const router = useRouter();
-
     const isCurrentAlbum = activeAlbum?.id === album.id;
 
+    const [imageLoaded, setImageLoaded] = useState(false);
+
     const handlePlayPress = () => {
-        playAlbum(album);
+        if (isCurrentAlbum) {
+            if (isPlaying) {
+                pauseTrack();
+            } else {
+                playTrack();
+            }
+        } else {
+            playAlbum(album);
+        }
     };
 
     const handleCardPress = () => {
-        if (isCurrentAlbum && isPlaying) {
+        if (isCurrentAlbum) {
             router.push('/(tabs)/album');
         } else {
             router.push(`/album/${album.id}`);
@@ -38,16 +47,21 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album }) => {
     return (
         <View style={styles.container}>
             <TouchableOpacity onPress={handleCardPress} style={styles.imageContainer}>
-                <Image source={{ uri: album.coverImage }} style={styles.image} />
+                {!imageLoaded && (
+                    <View style={styles.placeholder}>
+                        <ActivityIndicator color="#999" />
+                    </View>
+                )}
+                <Image
+                    source={{ uri: album.coverImage }}
+                    style={styles.image}
+                    onLoad={() => setImageLoaded(true)}
+                />
             </TouchableOpacity>
 
             <View style={styles.info}>
-                <Text style={styles.title} numberOfLines={1}>
-                    {album.title}
-                </Text>
-                <Text style={styles.artist} numberOfLines={1}>
-                    {album.artist}
-                </Text>
+                <Text style={styles.title} numberOfLines={1}>{album.title}</Text>
+                <Text style={styles.artist} numberOfLines={1}>{album.artist}</Text>
             </View>
 
             <TouchableOpacity onPress={handlePlayPress} style={styles.playButton}>
@@ -68,22 +82,29 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         borderRadius: 12,
         shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
     },
     imageContainer: {
         position: 'relative',
-    },
-    image: {
         width: '100%',
         height: 150,
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
+        overflow: 'hidden',
+    },
+    image: {
+        ...StyleSheet.absoluteFillObject,
+        width: '100%',
+        height: '100%',
+    },
+    placeholder: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#eee',
     },
     info: {
         padding: 12,

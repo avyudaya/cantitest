@@ -1,33 +1,37 @@
 import { AlbumCard } from '@/components/AlbumCard';
-import { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
 import { useMusic } from '../../components/MusicProvider';
 
 export default function Home() {
     const { albums, loadAlbums, isLoading } = useMusic();
-    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         loadAlbums();
     }, []);
 
-    const onRefresh = async () => {
-        setRefreshing(true);
-        await loadAlbums();
-        setRefreshing(false);
-    };
+    if (isLoading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Loading albums...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Your Albums</Text>
             <FlatList
                 data={albums}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => <AlbumCard album={item} />}
                 numColumns={2}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
                 contentContainerStyle={styles.listContainer}
             />
         </View>
@@ -47,5 +51,16 @@ const styles = StyleSheet.create({
     },
     listContainer: {
         padding: 8,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#555',
     },
 });

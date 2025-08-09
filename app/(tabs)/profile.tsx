@@ -1,9 +1,11 @@
+import { useMusic } from '@/components/MusicProvider';
 import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../components/AuthProvider';
 
 export default function Profile() {
     const { user, signOut } = useAuth();
+    const { resetPlayer } = useMusic();
     const router = useRouter();
 
     const handleSignOut = async () => {
@@ -16,6 +18,7 @@ export default function Profile() {
                     text: 'Sign Out',
                     style: 'destructive',
                     onPress: async () => {
+                        await resetPlayer();
                         await signOut();
                         router.replace('/login');
                     },

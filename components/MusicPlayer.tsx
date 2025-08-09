@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import React, { useState } from 'react';
+import React from 'react';
 import {
-    Alert,
     Dimensions,
     Image,
     ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View
 } from 'react-native';
 import { useMusic } from './MusicProvider';
@@ -25,18 +25,7 @@ export const MusicPlayer: React.FC = () => {
         nextTrack,
         previousTrack,
         seekTo,
-        // isBuffering,
-        // volume,
-        // setVolume,
-        // isRepeatEnabled,
-        // toggleRepeat,
-        // isShuffleEnabled,
-        // toggleShuffle
     } = useMusic();
-
-    const [isVolumeVisible, setIsVolumeVisible] = useState(false);
-    const [isSeeking, setIsSeeking] = useState(false);
-    const [seekPosition, setSeekPosition] = useState(0);
 
     if (!currentTrack || !activeAlbum) {
         return (
@@ -57,35 +46,16 @@ export const MusicPlayer: React.FC = () => {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleSeekStart = () => {
-        setIsSeeking(true);
-    };
-
-    const handleSeekChange = (value: number) => {
-        setSeekPosition(value);
-    };
-
     const handleSeekComplete = async (value: number) => {
-        setIsSeeking(false);
         try {
             await seekTo(value);
         } catch (error) {
             console.error('Seek error:', error);
-            Alert.alert('Error', 'Failed to seek to position');
         }
     };
 
-    const handleVolumeToggle = () => {
-        setIsVolumeVisible(!isVolumeVisible);
-    };
-
-    // const handleVolumeChange = (value: number) => {
-    //     setVolume(value);
-    // };
-
-    const currentPosition = isSeeking ? seekPosition : progress.position;
+    const currentPosition = progress.position;
     const duration = progress.duration || 0;
-    const progressPercentage = duration > 0 ? (currentPosition / duration) * 100 : 0;
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -96,13 +66,6 @@ export const MusicPlayer: React.FC = () => {
                     style={styles.albumArt}
                     resizeMode="cover"
                 />
-                {/* <View style={styles.albumArtOverlay}>
-                    {isBuffering && (
-                        <View style={styles.bufferingContainer}>
-                            <Text style={styles.bufferingText}>Loading...</Text>
-                        </View>
-                    )}
-                </View> */}
             </View>
 
             {/* Track Info */}
@@ -123,11 +86,6 @@ export const MusicPlayer: React.FC = () => {
                 <Text style={styles.timeText}>{formatTime(currentPosition)}</Text>
 
                 <View style={styles.progressBarContainer}>
-                    <View style={styles.progressTrack}>
-                        <View
-                            style={[styles.progressFill, { width: `${progressPercentage}%` }]}
-                        />
-                    </View>
                     <Slider
                         style={styles.progressSlider}
                         value={progress.position}
@@ -144,20 +102,11 @@ export const MusicPlayer: React.FC = () => {
             </View>
 
             {/* Main Controls */}
-            {/* <View style={styles.mainControls}>
-                <TouchableOpacity
-                    onPress={toggleShuffle}
-                    style={[styles.controlButton, styles.shuffleButton]}
-                >
-                    <Ionicons
-                        name="shuffle"
-                        size={24}
-                        color={isShuffleEnabled ? "#007AFF" : "#999"}
-                    />
-                </TouchableOpacity>
+            <View style={styles.mainControls}>
+                
 
                 <TouchableOpacity
-                    onPress={previousTrack}
+                    onPress={() => previousTrack()}
                     style={styles.controlButton}
                 >
                     <Ionicons name="play-skip-back" size={36} color="#333" />
@@ -166,83 +115,21 @@ export const MusicPlayer: React.FC = () => {
                 <TouchableOpacity
                     onPress={isPlaying ? pauseTrack : playTrack}
                     style={[styles.controlButton, styles.playButton]}
-                    disabled={isBuffering}
                 >
-                    {isBuffering ? (
-                        <Text style={styles.bufferingDot}>...</Text>
-                    ) : (
-                        <Ionicons
+                    <Ionicons
                             name={isPlaying ? "pause" : "play"}
                             size={44}
                             color="white"
                         />
-                    )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={nextTrack}
+                    onPress={() => nextTrack()}
                     style={styles.controlButton}
                 >
                     <Ionicons name="play-skip-forward" size={36} color="#333" />
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={toggleRepeat}
-                    style={[styles.controlButton, styles.repeatButton]}
-                >
-                    <Ionicons
-                        name={isRepeatEnabled ? "repeat" : "repeat-outline"}
-                        size={24}
-                        color={isRepeatEnabled ? "#007AFF" : "#999"}
-                    />
-                </TouchableOpacity>
-            </View> */}
-
-            {/* Secondary Controls */}
-            {/* <View style={styles.secondaryControls}>
-                <TouchableOpacity
-                    onPress={() => Alert.alert('Coming Soon', 'Add to playlist feature')}
-                    style={styles.secondaryButton}
-                >
-                    <Ionicons name="add" size={24} color="#666" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={handleVolumeToggle}
-                    style={styles.secondaryButton}
-                >
-                    <Ionicons
-                        name={volume > 0.5 ? "volume-high" : volume > 0 ? "volume-low" : "volume-mute"}
-                        size={24}
-                        color="#666"
-                    />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => Alert.alert('Coming Soon', 'Share track feature')}
-                    style={styles.secondaryButton}
-                >
-                    <Ionicons name="share" size={24} color="#666" />
-                </TouchableOpacity>
-            </View> */}
-
-            {/* Volume Control */}
-            {/* {isVolumeVisible && (
-                <View style={styles.volumeContainer}>
-                    <Ionicons name="volume-low" size={20} color="#666" />
-                    <Slider
-                        style={styles.volumeSlider}
-                        minimumValue={0}
-                        maximumValue={1}
-                        value={volume}
-                        onValueChange={handleVolumeChange}
-                        minimumTrackTintColor="#007AFF"
-                        maximumTrackTintColor="#E5E5E5"
-                        thumbStyle={styles.volumeThumb}
-                    />
-                    <Ionicons name="volume-high" size={20} color="#666" />
-                </View>
-            )} */}
+            </View>
         </ScrollView>
     );
 };

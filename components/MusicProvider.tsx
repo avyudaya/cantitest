@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import TrackPlayer, {
+    AppKilledPlaybackBehavior,
     Capability,
     Event,
+    IOSCategory,
+    IOSCategoryOptions,
     State,
     usePlaybackState,
     useProgress,
@@ -9,7 +12,7 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 
 interface Track {
-    id: string;
+    id: number;
     title: string;
     artist: string;
     url: string;
@@ -17,7 +20,7 @@ interface Track {
 }
 
 interface Album {
-    id: string;
+    id: number;
     title: string;
     artist: string;
     coverImage: string;
@@ -32,13 +35,15 @@ interface MusicContextType {
     isPlaying: boolean;
     isLoading: boolean;
     progress: any;
+
     loadAlbums: () => Promise<void>;
     playAlbum: (album: Album) => Promise<void>;
     playTrack: () => Promise<void>;
     pauseTrack: () => Promise<void>;
-    nextTrack: () => Promise<void>;
-    previousTrack: () => Promise<void>;
+    nextTrack: (restrictToAlbum?: boolean) => Promise<void>;
+    previousTrack: (restrictToAlbum?: boolean) => Promise<void>;
     seekTo: (position: number) => Promise<void>;
+    resetPlayer: () => Promise<void>;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -59,9 +64,9 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [allTracks, setAllTracks] = useState<Track[]>([]);
 
     const playbackState = usePlaybackState();
-    const progress = useProgress();
+    const progress = useProgress(1000);
 
-    const isPlaying = typeof playbackState === 'string' && playbackState === State.Playing;
+    const isPlaying = playbackState === State.Playing;
 
     useEffect(() => {
         setupTrackPlayer();
@@ -73,12 +78,11 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (track) {
                 setCurrentTrack(track as Track);
 
-                // Check if we need to switch to next album
+                // Update activeAlbum if track belongs to a different album
                 const currentAlbumTracks = activeAlbum?.tracks || [];
                 const currentTrackInAlbum = currentAlbumTracks.find(t => t.id === track.id);
 
                 if (!currentTrackInAlbum) {
-                    // Find which album this track belongs to
                     const newActiveAlbum = albums.find(album =>
                         album.tracks.some(t => t.id === track.id)
                     );
@@ -92,7 +96,15 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const setupTrackPlayer = async () => {
         try {
-            await TrackPlayer.setupPlayer();
+            await TrackPlayer.setupPlayer({
+                iosCategory: IOSCategory.Playback,
+                iosCategoryOptions: [IOSCategoryOptions.AllowAirPlay, IOSCategoryOptions.AllowBluetooth],
+                maxCacheSize: 50 * 1024 * 1024,
+                maxBuffer: 30000,
+                minBuffer: 25000,
+                playBuffer: 500,
+                backBuffer: 5000,
+            });
             await TrackPlayer.updateOptions({
                 capabilities: [
                     Capability.Play,
@@ -106,6 +118,9 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     Capability.Pause,
                     Capability.SkipToNext
                 ],
+                android: {
+                    appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+                },
             });
         } catch (error) {
             console.error('Error setting up track player:', error);
@@ -115,63 +130,77 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const loadAlbums = async () => {
         setIsLoading(true);
         try {
-            // Mock API call - replace with your actual API
+            // Mock data — replace with real API call
             const mockAlbums: Album[] = [
                 {
-                    id: '1',
-                    title: 'Summer Hits',
-                    artist: 'Various Artists',
-                    coverImage: 'https://picsum.photos/300/300?random=1',
-                    description: 'The best summer hits of the year.',
+                    id: 1,
+                    title: 'Chill Lo-Fi Landscapes',
+                    artist: 'Bryan Teoh',
+                    coverImage: 'https://picsum.photos/id/1055/300/300',
+                    description: 'Soft, mellow ambient sounds—great for study sessions and relaxation.',
                     tracks: [
-                        {
-                            id: '1-1',
-                            title: 'Summer Breeze',
-                            artist: 'Artist 1',
-                            url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-                            duration: 180,
-                        },
-                        {
-                            id: '1-2',
-                            title: 'Beach Party',
-                            artist: 'Artist 2',
-                            url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-                            duration: 200,
-                        },
+                    {
+                        id: 2,
+                        title: 'Planeteer Reaction (LoFi Chill)',
+                        artist: 'Bryan Teoh',
+                        url: 'https://freepd.com/music/Planeteer%20Reaction.mp3',
+                        duration: 248,
+                    },
                     ],
                 },
                 {
-                    id: '2',
-                    title: 'Chill Vibes',
-                    artist: 'Various Artists',
-                    coverImage: 'https://picsum.photos/300/300?random=2',
-                    description: 'Relaxing music for peaceful moments.',
+                    id: 2,
+                    title: 'Vintage Tape Echoes',
+                    artist: 'Kevin MacLeod',
+                    coverImage: 'https://picsum.photos/id/1062/300/300',
+                    description: 'Lo-fi retro vibes: soft piano, ambient tape hiss and dusty nostalgia.',
                     tracks: [
-                        {
-                            id: '2-1',
-                            title: 'Peaceful Mind',
-                            artist: 'Artist 3',
-                            url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-                            duration: 220,
-                        },
-                        {
-                            id: '2-2',
-                            title: 'Calm Waters',
-                            artist: 'Artist 4',
-                            url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-                            duration: 240,
-                        },
+                    {
+                        id: 3,
+                        title: 'Study and Relax',
+                        artist: 'Kevin MacLeod',
+                        url: 'https://freepd.com/music/Study%20and%20Relax.mp3',
+                        duration: 223,
+                    },
+                    {
+                        id: 4,
+                        title: 'Mana Two – Part 1',
+                        artist: 'Kevin MacLeod',
+                        url: 'https://freepd.com/music/Mana%20Two%20-%20Part%201.mp3',
+                        duration: 234,
+                    },
+                    ],
+                },
+                {
+                    id: 3,
+                    title: 'Dreamy Minimal Lo-Fi',
+                    artist: 'Aetherwave',
+                    coverImage: 'https://picsum.photos/id/1070/300/300',
+                    description: 'Ambient synth textures with lo-fi ambiance—ideal for late-night focus.',
+                    tracks: [
+                    {
+                        id: 5,
+                        title: 'Glow in the Forest (Kosmose Vaikus)',
+                        artist: 'Aetherwave',
+                        url: 'https://freepd.com/music/Kosmose%20Vaikus.mp3',
+                        duration: 362,
+                    },
+                    {
+                        id: 6,
+                        title: 'Breath of the Sea (Mere Hingamine)',
+                        artist: 'Aetherwave',
+                        url: 'https://freepd.com/music/Mere%20Hingamine.mp3',
+                        duration: 185,
+                    },
                     ],
                 },
             ];
 
             setAlbums(mockAlbums);
 
-            // Create queue with all tracks from all albums
             const tracks = mockAlbums.flatMap(album => album.tracks);
             setAllTracks(tracks);
 
-            // Add all tracks to player queue
             await TrackPlayer.reset();
             await TrackPlayer.add(tracks.map(track => ({
                 id: track.id,
@@ -189,18 +218,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const playAlbum = async (album: Album) => {
         try {
-            setActiveAlbum(album);
-
-            // Find the first track of this album in the queue
             const firstTrackIndex = allTracks.findIndex(track =>
                 album.tracks.some(albumTrack => albumTrack.id === track.id)
             );
-
-            if (firstTrackIndex !== -1) {
-                await TrackPlayer.skip(firstTrackIndex);
-                await TrackPlayer.play();
-                setCurrentTrack(allTracks[firstTrackIndex]);
-            }
+            await TrackPlayer.skip(firstTrackIndex);
+            await TrackPlayer.play();
+            setActiveAlbum(album);
+            setCurrentTrack(allTracks[firstTrackIndex]);
         } catch (error) {
             console.error('Error playing album:', error);
         }
@@ -225,6 +249,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const nextTrack = async () => {
         try {
             await TrackPlayer.skipToNext();
+            await TrackPlayer.play();
         } catch (error) {
             console.error('Error skipping to next track:', error);
         }
@@ -233,6 +258,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const previousTrack = async () => {
         try {
             await TrackPlayer.skipToPrevious();
+            await TrackPlayer.play();
         } catch (error) {
             console.error('Error skipping to previous track:', error);
         }
@@ -243,6 +269,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await TrackPlayer.seekTo(position);
         } catch (error) {
             console.error('Error seeking:', error);
+        }
+    };
+
+    const resetPlayer = async () => {
+        try {
+            await TrackPlayer.reset();
+        } catch (error) {
+            console.error('Failed to reset player:', error);
         }
     };
 
@@ -262,6 +296,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 nextTrack,
                 previousTrack,
                 seekTo,
+                resetPlayer,
             }}
         >
             {children}
