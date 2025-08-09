@@ -1,7 +1,6 @@
-import { prefetchTrack } from '@/utils/prefetchTrack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import TrackPlayer, {
     AppKilledPlaybackBehavior,
     Capability,
@@ -146,11 +145,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
-    async function loadAlbums(
-        setAlbums: Dispatch<SetStateAction<Album[]>>,
-        setAllTracks: Dispatch<SetStateAction<Track[]>>,
-        setIsLoading: Dispatch<SetStateAction<boolean>>
-    ): Promise<void> {
+    async function loadAlbums(): Promise<void> {
         setIsLoading(true);
         try {
             AsyncStorage.clear()
@@ -158,72 +153,72 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (netState.isConnected) {
                 // Online: load mock data
                 const mockAlbums = [
-    {
-        id: 1,
-        title: 'Chill Vibes Playlist',
-        artist: 'Various Artists',
-        coverImage: 'https://picsum.photos/id/1055/300/300',  // Replace with appropriate cover image if available
-        description: 'A mix of relaxing tunes to chill out and vibe to.',
-        tracks: [
-            {
-                id: 1,
-                title: 'Death Bed',
-                artist: 'Powfu',
-                url: 'https://samplesongs.netlify.app/Death%20Bed.mp3',
-                artwork: 'https://samplesongs.netlify.app/album-arts/death-bed.jpg',
-                duration: 240,  // Update with accurate duration if needed
-            },
-            {
-                id: 2,
-                title: 'Bad Liar',
-                artist: 'Imagine Dragons',
-                url: 'https://samplesongs.netlify.app/Bad%20Liar.mp3',
-                artwork: 'https://samplesongs.netlify.app/album-arts/bad-liar.jpg',
-                duration: 210,  // Update with accurate duration if needed
-            },
-            {
-                id: 3,
-                title: 'Faded',
-                artist: 'Alan Walker',
-                url: 'https://samplesongs.netlify.app/Faded.mp3',
-                artwork: 'https://samplesongs.netlify.app/album-arts/faded.jpg',
-                duration: 220,  // Update with accurate duration if needed
-            },
-        ],
-    },
-    {
-        id: 2,
-        title: 'Pop Hits Collection',
-        artist: 'Various Artists',
-        coverImage: 'https://picsum.photos/id/1062/300/300',  // Replace with appropriate cover image if available
-        description: 'A collection of popular tracks that everyone knows and loves.',
-        tracks: [
-            {
-                id: 5,
-                title: 'Hate Me',
-                artist: 'Ellie Goulding',
-                url: 'https://samplesongs.netlify.app/Hate%20Me.mp3',
-                artwork: 'https://samplesongs.netlify.app/album-arts/hate-me.jpg',
-                duration: 230,  // Update with accurate duration if needed
-            },
-            {
-                id: 6,
-                title: 'Solo',
-                artist: 'Clean Bandit',
-                url: 'https://samplesongs.netlify.app/Solo.mp3',
-                artwork: 'https://samplesongs.netlify.app/album-arts/solo.jpg',
-                duration: 240,  // Update with accurate duration if needed
-            },
-            {
-                id: 7,
-                title: 'Without Me',
-                artist: 'Halsey',
-                url: 'https://samplesongs.netlify.app/Without%20Me.mp3',
-                artwork: 'https://samplesongs.netlify.app/album-arts/without-me.jpg',
-                duration: 250,  // Update with accurate duration if needed
-            },
-        ],
-    },
+                    {
+                        id: 1,
+                        title: 'Chill Vibes Playlist',
+                        artist: 'Various Artists',
+                        coverImage: 'https://picsum.photos/id/1055/300/300',  // Replace with appropriate cover image if available
+                        description: 'A mix of relaxing tunes to chill out and vibe to.',
+                        tracks: [
+                            {
+                                id: 1,
+                                title: 'Death Bed',
+                                artist: 'Powfu',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/01_Floating_Points_Vocoder__Club_Mix_.wav?se=2025-08-10T08%3A40%3A54Z&sp=r&sv=2025-05-05&sr=b&sig=j17JuCiviGIBrFsRvP2IP5i9Qv/fvDZD27PX6zkL%2BPE%3D',
+                                artwork: 'https://samplesongs.netlify.app/album-arts/death-bed.jpg',
+                                duration: 240,  // Update with accurate duration if needed
+                            },
+                            {
+                                id: 2,
+                                title: 'Bad Liar',
+                                artist: 'Imagine Dragons',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/01_-_Poison_Root.wav?se=2025-08-10T08%3A40%3A54Z&sp=r&sv=2025-05-05&sr=b&sig=zhZJg0jN6Vh0CbSvOwrnqWZQUg9kHYcJcUFKQ5pz3cQ%3D',
+                                artwork: 'https://samplesongs.netlify.app/album-arts/bad-liar.jpg',
+                                duration: 210,  // Update with accurate duration if needed
+                            },
+                            {
+                                id: 3,
+                                title: 'Faded',
+                                artist: 'Alan Walker',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/02_-_Proud.wav?se=2025-08-10T08%3A40%3A54Z&sp=r&sv=2025-05-05&sr=b&sig=xhthhgrCvBdy93qE6hhXCZLRRzM%2BSppge380rt11aHE%3D',
+                                artwork: 'https://samplesongs.netlify.app/album-arts/faded.jpg',
+                                duration: 220,  // Update with accurate duration if needed
+                            },
+                        ],
+                    },
+                    {
+                        id: 2,
+                        title: 'Pop Hits Collection',
+                        artist: 'Various Artists',
+                        coverImage: 'https://picsum.photos/id/1062/300/300',  // Replace with appropriate cover image if available
+                        description: 'A collection of popular tracks that everyone knows and loves.',
+                        tracks: [
+                            {
+                                id: 5,
+                                title: 'Hate Me',
+                                artist: 'Ellie Goulding',
+                                url: 'https://samplesongs.netlify.app/Hate%20Me.mp3',
+                                artwork: 'https://samplesongs.netlify.app/album-arts/hate-me.jpg',
+                                duration: 230,  // Update with accurate duration if needed
+                            },
+                            {
+                                id: 6,
+                                title: 'Solo',
+                                artist: 'Clean Bandit',
+                                url: 'https://samplesongs.netlify.app/Solo.mp3',
+                                artwork: 'https://samplesongs.netlify.app/album-arts/solo.jpg',
+                                duration: 240,  // Update with accurate duration if needed
+                            },
+                            {
+                                id: 7,
+                                title: 'Without Me',
+                                artist: 'Halsey',
+                                url: 'https://samplesongs.netlify.app/Without%20Me.mp3',
+                                artwork: 'https://samplesongs.netlify.app/album-arts/without-me.jpg',
+                                duration: 250,  // Update with accurate duration if needed
+                            },
+                        ],
+                    },
                 ];
 
                 // Save albums to state and cache
@@ -234,48 +229,15 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const allTracks = mockAlbums.flatMap(album => album.tracks);
                 setAllTracks(allTracks);
 
-                const initialLimit = 2;
-                const initialTracks = allTracks.slice(0, initialLimit);
-                const remainingTracks = allTracks.slice(initialLimit);
-
-                // Prefetch and prepare TrackPlayer
-                const prefetchedInitial = await Promise.all(
-                    initialTracks.map(async (track) => {
-                        const localUri = await prefetchTrack(track);
-                        return { ...track, url: localUri };
-                    })
-                );
-
                 await TrackPlayer.reset();
                 await TrackPlayer.add(
-                    prefetchedInitial.map(track => ({
+                    allTracks.map(track => ({
                         id: track.id.toString(),
                         title: track.title,
                         artist: track.artist,
                         url: track.url,
                     }))
                 );
-
-                // Prefetch remaining in background
-                setTimeout(async () => {
-                    const prefetchedRemaining = await Promise.all(
-                        remainingTracks.map(async (track) => {
-                            const localUri = await prefetchTrack(track);
-                            return { ...track, url: localUri };
-                        })
-                    );
-
-                    await TrackPlayer.add(
-                        prefetchedRemaining.map(track => ({
-                            id: track.id.toString(),
-                            title: track.title,
-                            artist: track.artist,
-                            url: track.url,
-                        }))
-                    );
-
-                    setAllTracks([...prefetchedInitial, ...prefetchedRemaining]);
-                }, 0);
 
             } else {
                 // Offline: load from AsyncStorage
@@ -371,7 +333,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 isPlaying,
                 isLoading,
                 progress,
-                loadAlbums: () => loadAlbums(setAlbums, setAllTracks, setIsLoading),
+                loadAlbums,
                 playAlbum,
                 playTrack,
                 pauseTrack,
