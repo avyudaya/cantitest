@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { prefetchTrack } from '@/utils/prefetchTrack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from 'react';
 import TrackPlayer, {
     AppKilledPlaybackBehavior,
     Capability,
@@ -44,7 +47,11 @@ interface MusicContextType {
     previousTrack: (restrictToAlbum?: boolean) => Promise<void>;
     seekTo: (position: number) => Promise<void>;
     resetPlayer: () => Promise<void>;
+    trackIndex: number | null;
+    queueLength: number;
 }
+
+const ALBUMS_CACHE_KEY = 'cachedAlbums';
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
@@ -55,6 +62,7 @@ export const useMusic = () => {
     }
     return context;
 };
+let isSetup = false;
 
 export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [albums, setAlbums] = useState<Album[]>([]);
@@ -62,6 +70,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [allTracks, setAllTracks] = useState<Track[]>([]);
+    const [trackIndex, setTrackIndex] = useState<number | null>(null);
+    const [queueLength, setQueueLength] = useState<number>(0);
 
     const playbackState = usePlaybackState();
     const progress = useProgress(1000);
@@ -77,29 +87,37 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const track = await TrackPlayer.getTrack(event.nextTrack);
             if (track) {
                 setCurrentTrack(track as Track);
+            }
 
-                // Update activeAlbum if track belongs to a different album
-                const currentAlbumTracks = activeAlbum?.tracks || [];
-                const currentTrackInAlbum = currentAlbumTracks.find(t => t.id === track.id);
+            const currentIdx = await TrackPlayer.getCurrentTrack();
+            const queue = await TrackPlayer.getQueue();
 
-                if (!currentTrackInAlbum) {
-                    const newActiveAlbum = albums.find(album =>
-                        album.tracks.some(t => t.id === track.id)
-                    );
-                    if (newActiveAlbum) {
-                        setActiveAlbum(newActiveAlbum);
-                    }
+            setTrackIndex(currentIdx);
+            setQueueLength(queue.length);
+
+            // Update activeAlbum if track belongs to a different album
+            const currentAlbumTracks = activeAlbum?.tracks || [];
+            const currentTrackInAlbum = currentAlbumTracks.find(t => t.id == track?.id);
+            console.log(currentTrackInAlbum)
+
+            if (!currentTrackInAlbum) {
+                const newActiveAlbum = albums.find(album =>
+                    album.tracks.some(t => t.id == track?.id)
+                );
+                if (newActiveAlbum) {
+                    setActiveAlbum(newActiveAlbum);
                 }
             }
         }
     });
 
     const setupTrackPlayer = async () => {
+        if (isSetup) return;
         try {
             await TrackPlayer.setupPlayer({
                 iosCategory: IOSCategory.Playback,
                 iosCategoryOptions: [IOSCategoryOptions.AllowAirPlay, IOSCategoryOptions.AllowBluetooth],
-                maxCacheSize: 50 * 1024 * 1024,
+                maxCacheSize: 200 * 1024 * 1024,
                 maxBuffer: 30000,
                 minBuffer: 25000,
                 playBuffer: 500,
@@ -122,99 +140,163 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
                 },
             });
+            isSetup = true;
         } catch (error) {
             console.error('Error setting up track player:', error);
         }
     };
 
-    const loadAlbums = async () => {
+    async function loadAlbums(
+        setAlbums: Dispatch<SetStateAction<Album[]>>,
+        setAllTracks: Dispatch<SetStateAction<Track[]>>,
+        setIsLoading: Dispatch<SetStateAction<boolean>>
+    ): Promise<void> {
         setIsLoading(true);
         try {
-            // Mock data — replace with real API call
-            const mockAlbums: Album[] = [
-                {
-                    id: 1,
-                    title: 'Chill Lo-Fi Landscapes',
-                    artist: 'Bryan Teoh',
-                    coverImage: 'https://picsum.photos/id/1055/300/300',
-                    description: 'Soft, mellow ambient sounds—great for study sessions and relaxation.',
-                    tracks: [
-                    {
-                        id: 2,
-                        title: 'Planeteer Reaction (LoFi Chill)',
-                        artist: 'Bryan Teoh',
-                        url: 'https://freepd.com/music/Planeteer%20Reaction.mp3',
-                        duration: 248,
-                    },
-                    ],
-                },
-                {
-                    id: 2,
-                    title: 'Vintage Tape Echoes',
-                    artist: 'Kevin MacLeod',
-                    coverImage: 'https://picsum.photos/id/1062/300/300',
-                    description: 'Lo-fi retro vibes: soft piano, ambient tape hiss and dusty nostalgia.',
-                    tracks: [
-                    {
-                        id: 3,
-                        title: 'Study and Relax',
-                        artist: 'Kevin MacLeod',
-                        url: 'https://freepd.com/music/Study%20and%20Relax.mp3',
-                        duration: 223,
-                    },
-                    {
-                        id: 4,
-                        title: 'Mana Two – Part 1',
-                        artist: 'Kevin MacLeod',
-                        url: 'https://freepd.com/music/Mana%20Two%20-%20Part%201.mp3',
-                        duration: 234,
-                    },
-                    ],
-                },
-                {
-                    id: 3,
-                    title: 'Dreamy Minimal Lo-Fi',
-                    artist: 'Aetherwave',
-                    coverImage: 'https://picsum.photos/id/1070/300/300',
-                    description: 'Ambient synth textures with lo-fi ambiance—ideal for late-night focus.',
-                    tracks: [
-                    {
-                        id: 5,
-                        title: 'Glow in the Forest (Kosmose Vaikus)',
-                        artist: 'Aetherwave',
-                        url: 'https://freepd.com/music/Kosmose%20Vaikus.mp3',
-                        duration: 362,
-                    },
-                    {
-                        id: 6,
-                        title: 'Breath of the Sea (Mere Hingamine)',
-                        artist: 'Aetherwave',
-                        url: 'https://freepd.com/music/Mere%20Hingamine.mp3',
-                        duration: 185,
-                    },
-                    ],
-                },
-            ];
+            AsyncStorage.clear()
+            const netState = await NetInfo.fetch();
+            if (netState.isConnected) {
+                // Online: load mock data
+                const mockAlbums = [
+    {
+        id: 1,
+        title: 'Chill Vibes Playlist',
+        artist: 'Various Artists',
+        coverImage: 'https://picsum.photos/id/1055/300/300',  // Replace with appropriate cover image if available
+        description: 'A mix of relaxing tunes to chill out and vibe to.',
+        tracks: [
+            {
+                id: 1,
+                title: 'Death Bed',
+                artist: 'Powfu',
+                url: 'https://samplesongs.netlify.app/Death%20Bed.mp3',
+                artwork: 'https://samplesongs.netlify.app/album-arts/death-bed.jpg',
+                duration: 240,  // Update with accurate duration if needed
+            },
+            {
+                id: 2,
+                title: 'Bad Liar',
+                artist: 'Imagine Dragons',
+                url: 'https://samplesongs.netlify.app/Bad%20Liar.mp3',
+                artwork: 'https://samplesongs.netlify.app/album-arts/bad-liar.jpg',
+                duration: 210,  // Update with accurate duration if needed
+            },
+            {
+                id: 3,
+                title: 'Faded',
+                artist: 'Alan Walker',
+                url: 'https://samplesongs.netlify.app/Faded.mp3',
+                artwork: 'https://samplesongs.netlify.app/album-arts/faded.jpg',
+                duration: 220,  // Update with accurate duration if needed
+            },
+        ],
+    },
+    {
+        id: 2,
+        title: 'Pop Hits Collection',
+        artist: 'Various Artists',
+        coverImage: 'https://picsum.photos/id/1062/300/300',  // Replace with appropriate cover image if available
+        description: 'A collection of popular tracks that everyone knows and loves.',
+        tracks: [
+            {
+                id: 5,
+                title: 'Hate Me',
+                artist: 'Ellie Goulding',
+                url: 'https://samplesongs.netlify.app/Hate%20Me.mp3',
+                artwork: 'https://samplesongs.netlify.app/album-arts/hate-me.jpg',
+                duration: 230,  // Update with accurate duration if needed
+            },
+            {
+                id: 6,
+                title: 'Solo',
+                artist: 'Clean Bandit',
+                url: 'https://samplesongs.netlify.app/Solo.mp3',
+                artwork: 'https://samplesongs.netlify.app/album-arts/solo.jpg',
+                duration: 240,  // Update with accurate duration if needed
+            },
+            {
+                id: 7,
+                title: 'Without Me',
+                artist: 'Halsey',
+                url: 'https://samplesongs.netlify.app/Without%20Me.mp3',
+                artwork: 'https://samplesongs.netlify.app/album-arts/without-me.jpg',
+                duration: 250,  // Update with accurate duration if needed
+            },
+        ],
+    },
+                ];
 
-            setAlbums(mockAlbums);
+                // Save albums to state and cache
+                setAlbums(mockAlbums);
+                await AsyncStorage.setItem(ALBUMS_CACHE_KEY, JSON.stringify(mockAlbums));
 
-            const tracks = mockAlbums.flatMap(album => album.tracks);
-            setAllTracks(tracks);
+                // Flatten tracks
+                const allTracks = mockAlbums.flatMap(album => album.tracks);
+                setAllTracks(allTracks);
 
-            await TrackPlayer.reset();
-            await TrackPlayer.add(tracks.map(track => ({
-                id: track.id,
-                url: track.url,
-                title: track.title,
-                artist: track.artist,
-            })));
+                const initialLimit = 2;
+                const initialTracks = allTracks.slice(0, initialLimit);
+                const remainingTracks = allTracks.slice(initialLimit);
+
+                // Prefetch and prepare TrackPlayer
+                const prefetchedInitial = await Promise.all(
+                    initialTracks.map(async (track) => {
+                        const localUri = await prefetchTrack(track);
+                        return { ...track, url: localUri };
+                    })
+                );
+
+                await TrackPlayer.reset();
+                await TrackPlayer.add(
+                    prefetchedInitial.map(track => ({
+                        id: track.id.toString(),
+                        title: track.title,
+                        artist: track.artist,
+                        url: track.url,
+                    }))
+                );
+
+                // Prefetch remaining in background
+                setTimeout(async () => {
+                    const prefetchedRemaining = await Promise.all(
+                        remainingTracks.map(async (track) => {
+                            const localUri = await prefetchTrack(track);
+                            return { ...track, url: localUri };
+                        })
+                    );
+
+                    await TrackPlayer.add(
+                        prefetchedRemaining.map(track => ({
+                            id: track.id.toString(),
+                            title: track.title,
+                            artist: track.artist,
+                            url: track.url,
+                        }))
+                    );
+
+                    setAllTracks([...prefetchedInitial, ...prefetchedRemaining]);
+                }, 0);
+
+            } else {
+                // Offline: load from AsyncStorage
+                const cached = await AsyncStorage.getItem(ALBUMS_CACHE_KEY);
+                if (cached) {
+                    const parsed: Album[] = JSON.parse(cached);
+                    setAlbums(parsed);
+                    const allTracks: Track[] = parsed.flatMap(album => album.tracks);
+                    setAllTracks(allTracks);
+                } else {
+                    setAlbums([]);
+                }
+            }
 
         } catch (error) {
             console.error('Error loading albums:', error);
+            setAlbums([]);
         } finally {
             setIsLoading(false);
         }
-    };
+    }
 
     const playAlbum = async (album: Album) => {
         try {
@@ -289,7 +371,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 isPlaying,
                 isLoading,
                 progress,
-                loadAlbums,
+                loadAlbums: () => loadAlbums(setAlbums, setAllTracks, setIsLoading),
                 playAlbum,
                 playTrack,
                 pauseTrack,
@@ -297,6 +379,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 previousTrack,
                 seekTo,
                 resetPlayer,
+                trackIndex,
+                queueLength,
             }}
         >
             {children}

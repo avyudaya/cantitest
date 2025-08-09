@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from './MusicProvider';
 
 interface Album {
@@ -56,6 +57,7 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({ album }) => {
                     source={{ uri: album.coverImage }}
                     style={styles.image}
                     onLoad={() => setImageLoaded(true)}
+                    cachePolicy='memory-disk'
                 />
             </TouchableOpacity>
 

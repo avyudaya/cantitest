@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from '../../components/MusicProvider';
 
 interface Track {
@@ -40,17 +41,17 @@ export default function ActiveAlbum() {
   const isLastTrack = () => {
     if (!currentTrack || !activeAlbum) return false;
     const lastTrack = activeAlbum.tracks[activeAlbum.tracks.length - 1];
-    return currentTrack.id === lastTrack.id;
+    return currentTrack.id == lastTrack.id;
   };
 
   const isFirstTrack = () => {
     if (!currentTrack || !activeAlbum) return false;
     const firstTrack = activeAlbum.tracks[0];
-    return currentTrack.id === firstTrack.id;
+    return currentTrack.id == firstTrack.id;
   };
 
   const renderTrack = ({ item, index }: { item: Track; index: number }) => {
-  const isCurrentTrack = currentTrack?.id === item.id;
+  const isCurrentTrack = currentTrack?.id == item.id;
 
   const content = (
     <View
@@ -98,7 +99,7 @@ export default function ActiveAlbum() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.header}>{activeAlbum.title}</Text>
       <View style={styles.topSection}>
-        <Image source={{ uri: activeAlbum.coverImage }} style={styles.coverImage} />
+        <Image source={{ uri: activeAlbum.coverImage }} style={styles.coverImage} cachePolicy='memory-disk'/>
         <View style={styles.controls}>
           <TouchableOpacity onPress={() => previousTrack()} style={[styles.controlButton, isFirstTrack() && styles.disabledButton]}
   disabled={isFirstTrack()}>

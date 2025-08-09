@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
+import { Image } from 'expo-image';
 import React from 'react';
 import {
     Dimensions,
-    Image,
     ScrollView,
     StyleSheet,
     Text,
@@ -25,7 +25,12 @@ export const MusicPlayer: React.FC = () => {
         nextTrack,
         previousTrack,
         seekTo,
+        trackIndex,
+        queueLength
     } = useMusic();
+
+    const isFirstTrack = trackIndex === 0;
+    const isLastTrack = trackIndex === queueLength - 1;
 
     if (!currentTrack || !activeAlbum) {
         return (
@@ -54,9 +59,6 @@ export const MusicPlayer: React.FC = () => {
         }
     };
 
-    const currentPosition = progress.position;
-    const duration = progress.duration || 0;
-
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
             {/* Album Art */}
@@ -65,6 +67,7 @@ export const MusicPlayer: React.FC = () => {
                     source={{ uri: activeAlbum.coverImage }}
                     style={styles.albumArt}
                     resizeMode="cover"
+                    cachePolicy='memory-disk'
                 />
             </View>
 
@@ -83,7 +86,7 @@ export const MusicPlayer: React.FC = () => {
 
             {/* Progress Bar */}
             <View style={styles.progressContainer}>
-                <Text style={styles.timeText}>{formatTime(currentPosition)}</Text>
+                <Text style={styles.timeText}>{formatTime(progress.position)}</Text>
 
                 <View style={styles.progressBarContainer}>
                     <Slider
@@ -98,7 +101,7 @@ export const MusicPlayer: React.FC = () => {
                     />
                 </View>
 
-                <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                <Text style={styles.timeText}>{formatTime(progress.duration || 0)}</Text>
             </View>
 
             {/* Main Controls */}
@@ -106,8 +109,9 @@ export const MusicPlayer: React.FC = () => {
                 
 
                 <TouchableOpacity
-                    onPress={() => previousTrack()}
-                    style={styles.controlButton}
+                    onPress={() => !isFirstTrack && previousTrack()}
+                    disabled={isFirstTrack}
+                    style={[styles.controlButton, isFirstTrack && { opacity: 0.5 }]}
                 >
                     <Ionicons name="play-skip-back" size={36} color="#333" />
                 </TouchableOpacity>
@@ -124,8 +128,9 @@ export const MusicPlayer: React.FC = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => nextTrack()}
-                    style={styles.controlButton}
+                    onPress={() => !isLastTrack && nextTrack()}
+                    disabled={isLastTrack}
+                    style={[styles.controlButton, isLastTrack && { opacity: 0.4 }]}
                 >
                     <Ionicons name="play-skip-forward" size={36} color="#333" />
                 </TouchableOpacity>

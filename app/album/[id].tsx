@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from '../../components/MusicProvider';
 
 interface Track {
@@ -74,17 +75,17 @@ export default function AlbumDetails() {
     const isLastTrack = () => {
         if (!currentTrack || !activeAlbum) return false;
         const lastTrack = activeAlbum.tracks[activeAlbum.tracks.length - 1];
-        return currentTrack.id === lastTrack.id;
+        return currentTrack.id == lastTrack.id;
     };
 
     const isFirstTrack = () => {
         if (!currentTrack || !activeAlbum) return false;
         const firstTrack = activeAlbum.tracks[0];
-        return currentTrack.id === firstTrack.id;
+        return currentTrack.id == firstTrack.id;
     };
 
     const renderTrack = ({ item, index }: { item: Track; index: number }) => {
-      const isCurrentTrack = currentTrack?.id === item.id;
+      const isCurrentTrack = currentTrack?.id == item.id;
     
       const content = (
         <View
@@ -131,7 +132,7 @@ export default function AlbumDetails() {
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
             {/* Header + Playback controls */}
             <View style={styles.header}>
-                <Image source={{ uri: album.coverImage }} style={styles.albumCover} />
+                <Image source={{ uri: album.coverImage }} style={styles.albumCover} cachePolicy='memory-disk'/>
                 <View style={styles.albumInfo}>
                     <Text style={styles.albumTitle}>{album.title}</Text>
                     <Text style={styles.albumArtist}>{album.artist}</Text>
@@ -139,11 +140,8 @@ export default function AlbumDetails() {
 
                     {/* Playback Controls from ActiveAlbum */}
                     <View style={styles.controls}>
-                        <TouchableOpacity
-                            onPress={() => previousTrack()}
-                            style={[styles.controlButton, isFirstTrack() && styles.disabledButton]}
-                            disabled={isFirstTrack()}
-                        >
+                        <TouchableOpacity onPress={() => previousTrack()} style={[styles.controlButton, isFirstTrack() && styles.disabledButton]}
+                          disabled={isFirstTrack()}>
                             <Ionicons name="play-skip-back" size={32} color="#333" />
                         </TouchableOpacity>
 
@@ -158,11 +156,8 @@ export default function AlbumDetails() {
                             />
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={() => nextTrack()}
-                            style={[styles.controlButton, isLastTrack() && styles.disabledButton]}
-                            disabled={isLastTrack()}
-                        >
+                        <TouchableOpacity onPress={() => nextTrack()} style={[styles.controlButton, isLastTrack() && styles.disabledButton]}
+                          disabled={isLastTrack()}>
                             <Ionicons name="play-skip-forward" size={32} color="#333" />
                         </TouchableOpacity>
                     </View>
