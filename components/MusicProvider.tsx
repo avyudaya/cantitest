@@ -73,9 +73,10 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [queueLength, setQueueLength] = useState<number>(0);
 
     const playbackState = usePlaybackState();
-    const progress = useProgress(1000);
+    const progress = useProgress(250);
 
     const isPlaying = playbackState === State.Playing;
+    const isBuffering = playbackState === State.Buffering || State.Connecting || State.Ready
 
     useEffect(() => {
         setupTrackPlayer();
@@ -83,28 +84,37 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     useTrackPlayerEvents([Event.PlaybackTrackChanged], async (event) => {
         if (event.type === Event.PlaybackTrackChanged && event.nextTrack != null) {
+            // Get the next track from TrackPlayer
             const track = await TrackPlayer.getTrack(event.nextTrack);
             if (track) {
-                setCurrentTrack(track as Track);
-            }
+                // Check if the current track is different from the new track
+                if (currentTrack?.id !== track.id) {
+                    setCurrentTrack(track as Track);
+                }
 
-            const currentIdx = await TrackPlayer.getCurrentTrack();
-            const queue = await TrackPlayer.getQueue();
+                const currentIdx = await TrackPlayer.getCurrentTrack();
+                const queue = await TrackPlayer.getQueue();
 
-            setTrackIndex(currentIdx);
-            setQueueLength(queue.length);
+                // Update the track index and queue length only if they change
+                if (currentIdx !== trackIndex) {
+                    setTrackIndex(currentIdx);
+                }
+                if (queue.length !== queueLength) {
+                    setQueueLength(queue.length);
+                }
 
-            // Update activeAlbum if track belongs to a different album
-            const currentAlbumTracks = activeAlbum?.tracks || [];
-            const currentTrackInAlbum = currentAlbumTracks.find(t => t.id == track?.id);
-            console.log(currentTrackInAlbum)
+                // Update activeAlbum if track belongs to a different album
+                const currentAlbumTracks = activeAlbum?.tracks || [];
+                const currentTrackInAlbum = currentAlbumTracks.find(t => t.id == track?.id);
 
-            if (!currentTrackInAlbum) {
-                const newActiveAlbum = albums.find(album =>
-                    album.tracks.some(t => t.id == track?.id)
-                );
-                if (newActiveAlbum) {
-                    setActiveAlbum(newActiveAlbum);
+                if (!currentTrackInAlbum) {
+                    // Find the new active album only if it changes
+                    const newActiveAlbum = albums.find(album =>
+                        album.tracks.some(t => t.id == track?.id)
+                    );
+                    if (newActiveAlbum && newActiveAlbum.id !== activeAlbum?.id) {
+                        setActiveAlbum(newActiveAlbum);
+                    }
                 }
             }
         }
@@ -115,11 +125,14 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             await TrackPlayer.setupPlayer({
                 iosCategory: IOSCategory.Playback,
-                iosCategoryOptions: [IOSCategoryOptions.AllowAirPlay, IOSCategoryOptions.AllowBluetooth],
-                maxCacheSize: 200 * 1024 * 1024,
+                iosCategoryOptions: [
+                    IOSCategoryOptions.AllowAirPlay,
+                    IOSCategoryOptions.AllowBluetooth,
+                ],
+                maxCacheSize: 50 * 1024 * 1024,
                 maxBuffer: 30000,
-                minBuffer: 25000,
-                playBuffer: 500,
+                minBuffer: 15000,
+                playBuffer: 2500,
                 backBuffer: 5000,
             });
             await TrackPlayer.updateOptions({
@@ -138,6 +151,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 android: {
                     appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
                 },
+                progressUpdateEventInterval: 5,
+                alwaysPauseOnInterruption: false,
             });
             isSetup = true;
         } catch (error) {
@@ -148,7 +163,6 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     async function loadAlbums(): Promise<void> {
         setIsLoading(true);
         try {
-            AsyncStorage.clear()
             const netState = await NetInfo.fetch();
             if (netState.isConnected) {
                 // Online: load mock data
@@ -228,7 +242,6 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Flatten tracks
                 const allTracks = mockAlbums.flatMap(album => album.tracks);
                 setAllTracks(allTracks);
-
                 await TrackPlayer.reset();
                 await TrackPlayer.add(
                     allTracks.map(track => ({
@@ -238,6 +251,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         url: track.url,
                     }))
                 );
+                setIsLoading(false);
 
             } else {
                 // Offline: load from AsyncStorage
