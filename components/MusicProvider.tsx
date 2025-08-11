@@ -11,6 +11,7 @@ import TrackPlayer, {
     useProgress,
     useTrackPlayerEvents
 } from 'react-native-track-player';
+import PlaybackTracker from './PlaybackTracker';
 
 interface Track {
     id: number;
@@ -74,9 +75,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const progress = useProgress(250);
     const hasHandledFirstTrackChange = useRef(false);
+    const tracker = useRef<PlaybackTracker>(PlaybackTracker.getInstance());
 
     useEffect(() => {
         setupTrackPlayer();
+        return () => {
+            tracker.current.destroy()
+        }
     }, []);
 
     useTrackPlayerEvents([Event.PlaybackTrackChanged, Event.PlaybackState], async (event) => {
@@ -91,6 +96,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Check if the current track is different from the new track
                 if (currentTrack?.id !== track.id) {
                     setCurrentTrack(track as Track);
+                    tracker.current.startPlayback(track.id, track.duration)
                 }
 
                 const currentIdx = await TrackPlayer.getCurrentTrack();
