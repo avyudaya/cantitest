@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import TrackPlayer, {
     AppKilledPlaybackBehavior,
     Capability,
@@ -8,7 +8,6 @@ import TrackPlayer, {
     IOSCategory,
     IOSCategoryOptions,
     State,
-    usePlaybackState,
     useProgress,
     useTrackPlayerEvents
 } from 'react-native-track-player';
@@ -42,8 +41,8 @@ interface MusicContextType {
     playAlbum: (album: Album) => Promise<void>;
     playTrack: () => Promise<void>;
     pauseTrack: () => Promise<void>;
-    nextTrack: (restrictToAlbum?: boolean) => Promise<void>;
-    previousTrack: (restrictToAlbum?: boolean) => Promise<void>;
+    nextTrack: () => Promise<void>;
+    previousTrack: () => Promise<void>;
     seekTo: (position: number) => Promise<void>;
     resetPlayer: () => Promise<void>;
     trackIndex: number | null;
@@ -71,19 +70,21 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [allTracks, setAllTracks] = useState<Track[]>([]);
     const [trackIndex, setTrackIndex] = useState<number | null>(null);
     const [queueLength, setQueueLength] = useState<number>(0);
+    const [isPlaying, setIsPlaying] = useState(false)
 
-    const playbackState = usePlaybackState();
     const progress = useProgress(250);
-
-    const isPlaying = playbackState === State.Playing;
-    const isBuffering = playbackState === State.Buffering || State.Connecting || State.Ready
+    const hasHandledFirstTrackChange = useRef(false);
 
     useEffect(() => {
         setupTrackPlayer();
     }, []);
 
-    useTrackPlayerEvents([Event.PlaybackTrackChanged], async (event) => {
+    useTrackPlayerEvents([Event.PlaybackTrackChanged, Event.PlaybackState], async (event) => {
         if (event.type === Event.PlaybackTrackChanged && event.nextTrack != null) {
+            if (!hasHandledFirstTrackChange.current) {
+                hasHandledFirstTrackChange.current = true;
+                return;
+            }
             // Get the next track from TrackPlayer
             const track = await TrackPlayer.getTrack(event.nextTrack);
             if (track) {
@@ -116,6 +117,12 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         setActiveAlbum(newActiveAlbum);
                     }
                 }
+            }
+        } else if (event.type === Event.PlaybackState) {
+            if (event.state === State.Playing) {
+                setIsPlaying(true);
+            } else if (event.state === State.Paused) {
+                setIsPlaying(false);
             }
         }
     });
@@ -151,7 +158,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 android: {
                     appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
                 },
-                progressUpdateEventInterval: 5,
+                progressUpdateEventInterval: 2,
                 alwaysPauseOnInterruption: false,
             });
             isSetup = true;
@@ -178,7 +185,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 1,
                                 title: 'Death Bed',
                                 artist: 'Powfu',
-                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/01_Floating_Points_Vocoder__Club_Mix_.wav?se=2025-08-10T08%3A40%3A54Z&sp=r&sv=2025-05-05&sr=b&sig=j17JuCiviGIBrFsRvP2IP5i9Qv/fvDZD27PX6zkL%2BPE%3D',
+                                url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Rangs.mp3',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/death-bed.jpg',
                                 duration: 240,  // Update with accurate duration if needed
                             },
@@ -186,7 +193,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 2,
                                 title: 'Bad Liar',
                                 artist: 'Imagine Dragons',
-                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/01_-_Poison_Root.wav?se=2025-08-10T08%3A40%3A54Z&sp=r&sv=2025-05-05&sr=b&sig=zhZJg0jN6Vh0CbSvOwrnqWZQUg9kHYcJcUFKQ5pz3cQ%3D',
+                                url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Grand%20Dark%20Waltz%20Allegro.mp3',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/bad-liar.jpg',
                                 duration: 210,  // Update with accurate duration if needed
                             },
@@ -194,7 +201,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 3,
                                 title: 'Faded',
                                 artist: 'Alan Walker',
-                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/02_-_Proud.wav?se=2025-08-10T08%3A40%3A54Z&sp=r&sv=2025-05-05&sr=b&sig=xhthhgrCvBdy93qE6hhXCZLRRzM%2BSppge380rt11aHE%3D',
+                                url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/SCP-x2x.mp3',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/faded.jpg',
                                 duration: 220,  // Update with accurate duration if needed
                             },
@@ -233,6 +240,29 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             },
                         ],
                     },
+                    {
+                        id: 3,
+                        title: 'Classical Moods',
+                        artist: 'Various Composers',
+                        coverImage: 'https://picsum.photos/id/1025/300/300',
+                        description: 'Timeless public domain classical pieces.',
+                        tracks: [
+                            { id: 8, title: 'Beethoven – Moonlight Sonata 1st Movement', artist: 'Ludwig van Beethoven', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Feelin%20Good.mp3', duration: 360 },
+                            { id: 9, title: 'Chopin – Nocturne Op.9 No.2', artist: 'Frédéric Chopin', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/AcidJazz.mp3', duration: 320 },
+                        ],
+                    },
+                    {
+                        id: 4,
+                        title: 'Epic & Dramatic',
+                        artist: 'FreePD Collection',
+                        coverImage: 'https://picsum.photos/id/237/300/300',
+                        description: 'Powerful, cinematic public domain sounds.',
+                        tracks: [
+                            { id: 10, title: 'Epic Drama', artist: 'FreePD Artist', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/AhDah.mp3', duration: 180 },
+                            { id: 11, title: 'Triumphant March', artist: 'FreePD Artist', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Angels%20We%20Have%20Heard.mp3', duration: 200 },
+                        ],
+                    }
+
                 ];
 
                 // Save albums to state and cache
@@ -281,8 +311,6 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             );
             await TrackPlayer.skip(firstTrackIndex);
             await TrackPlayer.play();
-            setActiveAlbum(album);
-            setCurrentTrack(allTracks[firstTrackIndex]);
         } catch (error) {
             console.error('Error playing album:', error);
         }
