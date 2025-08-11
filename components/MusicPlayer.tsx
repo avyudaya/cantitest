@@ -66,7 +66,7 @@ export const MusicPlayer: React.FC = () => {
                 <Image
                     source={{ uri: activeAlbum.coverImage }}
                     style={styles.albumArt}
-                    resizeMode="cover"
+                    contentFit="cover"
                     cachePolicy='memory-disk'
                 />
             </View>

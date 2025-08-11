@@ -327,6 +327,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const pauseTrack = async () => {
         try {
             await TrackPlayer.pause();
+            setIsPlaying(false)
         } catch (error) {
             console.error('Error pausing track:', error);
         }

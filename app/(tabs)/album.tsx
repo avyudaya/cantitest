@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from '../../components/MusicProvider';
 
 interface Track {
-    id: number;
-    title: string;
-    artist: string;
-    url: string;
-    duration: number;
+  id: number;
+  title: string;
+  artist: string;
+  url: string;
+  duration: number;
 }
 
 export default function ActiveAlbum() {
@@ -19,12 +20,28 @@ export default function ActiveAlbum() {
     playTrack,
     pauseTrack,
     nextTrack,
+    playAlbum,
     previousTrack,
     isPlaying,
   } = useMusic();
   const router = useRouter();
+  const [localActiveAlbum, setLocalActiveAlbum] = useState(activeAlbum);
+  const haFocsed = useRef(true);
+  const isStale = localActiveAlbum?.id !== activeAlbum?.id;
 
-  if (!activeAlbum) {
+  useFocusEffect(
+    useCallback(() => {
+      if (haFocsed.current) {
+        setLocalActiveAlbum(activeAlbum);
+      }
+
+      return () => {
+        haFocsed.current = false;
+      };
+    }, [activeAlbum])
+  );
+
+  if (!localActiveAlbum || !activeAlbum) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.emptyText}>No album is currently active</Text>
@@ -39,101 +56,121 @@ export default function ActiveAlbum() {
   };
 
   const isLastTrack = () => {
-    if (!currentTrack || !activeAlbum) return false;
-    const lastTrack = activeAlbum.tracks[activeAlbum.tracks.length - 1];
+    if (!currentTrack || !localActiveAlbum) return false;
+    const lastTrack = localActiveAlbum.tracks[localActiveAlbum.tracks.length - 1];
     return currentTrack.id == lastTrack.id;
   };
 
   const isFirstTrack = () => {
-    if (!currentTrack || !activeAlbum) return false;
-    const firstTrack = activeAlbum.tracks[0];
+    if (!currentTrack || !localActiveAlbum) return false;
+    const firstTrack = localActiveAlbum.tracks[0];
     return currentTrack.id == firstTrack.id;
   };
 
   const renderTrack = ({ item, index }: { item: Track; index: number }) => {
-  const isCurrentTrack = currentTrack?.id == item.id;
+    const isCurrentTrack = currentTrack?.id == item.id;
 
-  const content = (
-    <View
-      style={[
-        styles.trackItem,
-        isCurrentTrack ? styles.activeTrackItem : null,
-      ]}
-    >
-      <View style={styles.trackNumber}>
+    const content = (
+      <View
+        style={[
+          styles.trackItem,
+          isCurrentTrack ? styles.activeTrackItem : null,
+        ]}
+      >
+        <View style={styles.trackNumber}>
+          <Text style={[
+            styles.trackNumberText,
+            isCurrentTrack ? styles.activeTrackText : null,
+          ]}>{index + 1}</Text>
+        </View>
+        <View style={styles.trackInfo}>
+          <Text style={[
+            styles.trackTitle,
+            isCurrentTrack ? styles.activeTrackText : null,
+          ]}>{item.title}</Text>
+          <Text style={[
+            styles.trackArtist,
+            isCurrentTrack ? styles.activeTrackText : null,
+          ]}>{item.artist}</Text>
+        </View>
         <Text style={[
-          styles.trackNumberText,
+          styles.trackDuration,
           isCurrentTrack ? styles.activeTrackText : null,
-        ]}>{index + 1}</Text>
+        ]}>{formatDuration(item.duration)}</Text>
       </View>
-      <View style={styles.trackInfo}>
-        <Text style={[
-          styles.trackTitle,
-          isCurrentTrack ? styles.activeTrackText : null,
-        ]}>{item.title}</Text>
-        <Text style={[
-          styles.trackArtist,
-          isCurrentTrack ? styles.activeTrackText : null,
-        ]}>{item.artist}</Text>
-      </View>
-      <Text style={[
-        styles.trackDuration,
-        isCurrentTrack ? styles.activeTrackText : null,
-      ]}>{formatDuration(item.duration)}</Text>
-    </View>
-  );
-
-  if (isCurrentTrack) {
-    return (
-      <TouchableOpacity onPress={() => router.push('/(tabs)/player')}>
-        {content}
-      </TouchableOpacity>
     );
-  }
 
-  return content;
-};
+    if (isCurrentTrack) {
+      return (
+        <TouchableOpacity onPress={() => router.push('/(tabs)/player')}>
+          {content}
+        </TouchableOpacity>
+      );
+    }
+
+    return content;
+  };
 
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.header}>{activeAlbum.title}</Text>
+      <Text style={styles.header}>{localActiveAlbum.title}</Text>
       <View style={styles.topSection}>
-        <Image source={{ uri: activeAlbum.coverImage }} style={styles.coverImage} cachePolicy='memory-disk'/>
+        <Image source={{ uri: localActiveAlbum.coverImage }} style={styles.coverImage} cachePolicy='memory-disk' />
         <View style={styles.controls}>
-          <TouchableOpacity onPress={() => previousTrack()} style={[styles.controlButton, isFirstTrack() && styles.disabledButton]}
-  disabled={isFirstTrack()}>
+          <TouchableOpacity
+            onPress={() => previousTrack()}
+            style={[
+              styles.controlButton,
+              (isFirstTrack() || isStale) && styles.disabledButton
+            ]}
+            disabled={isFirstTrack() || isStale}
+          >
             <Ionicons name="play-skip-back" size={32} color="#333" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={isPlaying ? pauseTrack : playTrack}
+            onPress={() => {
+              if (isStale) {
+                playAlbum(localActiveAlbum);
+              } else {
+                isPlaying ? pauseTrack() : playTrack();
+              }
+            }}
             style={[styles.controlButton, styles.playButton]}
           >
             <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
+              name={isPlaying && !isStale ? 'pause' : 'play'}
               size={32}
               color="#fff"
             />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => nextTrack()} style={[styles.controlButton, isLastTrack() && styles.disabledButton]}
-  disabled={isLastTrack()}>
+
+          <TouchableOpacity
+            onPress={() => nextTrack()}
+            style={[
+              styles.controlButton,
+              (isLastTrack() || isStale) && styles.disabledButton
+            ]}
+            disabled={isLastTrack() || isStale}
+          >
             <Ionicons name="play-skip-forward" size={32} color="#333" />
           </TouchableOpacity>
+
         </View>
       </View>
 
-      {activeAlbum.description ? (
+      {localActiveAlbum.description ? (
         <View style={styles.descriptionSection}>
           <Text style={styles.descriptionTitle}>Description</Text>
-          <Text style={styles.description}>{activeAlbum.description}</Text>
+          <Text style={styles.description}>{localActiveAlbum.description}</Text>
         </View>
       ) : null}
 
       <Text style={styles.tracksTitle}>Tracks</Text>
       <FlatList
-        data={activeAlbum.tracks}
+        data={localActiveAlbum.tracks}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderTrack}
         style={styles.tracksList}
@@ -166,8 +203,8 @@ const styles = StyleSheet.create({
     marginTop: 100,
   },
   disabledButton: {
-  opacity: 0.5,
-},
+    opacity: 0.5,
+  },
   topSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -205,8 +242,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   activeTrackItem: {
-        backgroundColor: '#e6f0ff',
-    },
+    backgroundColor: '#e6f0ff',
+  },
   description: {
     fontSize: 14,
     color: '#444',
