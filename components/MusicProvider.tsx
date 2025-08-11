@@ -73,7 +73,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [queueLength, setQueueLength] = useState<number>(0);
     const [isPlaying, setIsPlaying] = useState(false)
 
-    const progress = useProgress(250);
+    const progress = useProgress(500);
     const hasHandledFirstTrackChange = useRef(false);
     const tracker = useRef<PlaybackTracker>(PlaybackTracker.getInstance());
 
@@ -90,13 +90,16 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 hasHandledFirstTrackChange.current = true;
                 return;
             }
+            await tracker.current.endCurrentSession();
             // Get the next track from TrackPlayer
             const track = await TrackPlayer.getTrack(event.nextTrack);
             if (track) {
+                if(track.duration){
+                    tracker.current.startPlayback(track.id.toString(), track.duration);
+                }
                 // Check if the current track is different from the new track
                 if (currentTrack?.id !== track.id) {
                     setCurrentTrack(track as Track);
-                    tracker.current.startPlayback(track.id, track.duration)
                 }
 
                 const currentIdx = await TrackPlayer.getCurrentTrack();
@@ -127,11 +130,19 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else if (event.type === Event.PlaybackState) {
             if (event.state === State.Playing) {
                 setIsPlaying(true);
+                tracker.current.handlePlay();
             } else if (event.state === State.Paused) {
                 setIsPlaying(false);
+                tracker.current.handlePause();
             }
         }
     });
+
+    useEffect(() => {
+        if (currentTrack && isPlaying) {
+            tracker.current.updatePlaybackPosition(progress.position);
+        }
+    }, [progress.position, currentTrack, isPlaying]);
 
     const setupTrackPlayer = async () => {
         if (isSetup) return;
@@ -142,10 +153,10 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     IOSCategoryOptions.AllowAirPlay,
                     IOSCategoryOptions.AllowBluetooth,
                 ],
-                maxCacheSize: 50 * 1024 * 1024,
+                maxCacheSize: 200 * 1024 * 1024,
                 maxBuffer: 30000,
-                minBuffer: 15000,
-                playBuffer: 2500,
+                minBuffer: 1000,
+                playBuffer: 500,
                 backBuffer: 5000,
             });
             await TrackPlayer.updateOptions({
@@ -191,7 +202,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 1,
                                 title: 'Death Bed',
                                 artist: 'Powfu',
-                                url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lord%20of%20the%20Rangs.mp3',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/Another_Brick_In_The_Wall_Part_1.mp3?se=2025-08-11T18%3A06%3A48Z&sp=r&sv=2025-05-05&sr=b&sig=fzMSMGnN1haDHQ72/CdYqFdLoUxB2Nq1JEIWScz%2B%2BP4%3D',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/death-bed.jpg',
                                 duration: 240,  // Update with accurate duration if needed
                             },
@@ -199,7 +210,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 2,
                                 title: 'Bad Liar',
                                 artist: 'Imagine Dragons',
-                                url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Grand%20Dark%20Waltz%20Allegro.mp3',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/The_Happiest_Days_Of_Our_Lives.mp3?se=2025-08-11T18%3A06%3A48Z&sp=r&sv=2025-05-05&sr=b&sig=iatQx0Vuuj0KP59lRUhsxeKqyl6mpIttZhrJrDfHKFc%3D',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/bad-liar.jpg',
                                 duration: 210,  // Update with accurate duration if needed
                             },
@@ -207,7 +218,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 3,
                                 title: 'Faded',
                                 artist: 'Alan Walker',
-                                url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/SCP-x2x.mp3',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/01_Floating_Points_Vocoder__Club_Mix_.wav?se=2025-08-12T10%3A31%3A45Z&sp=r&sv=2025-05-05&sr=b&sig=TXzRVGzVyVOw5yi519RrivN0/XW0Dt44seNA8%2BtW9YA%3D',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/faded.jpg',
                                 duration: 220,  // Update with accurate duration if needed
                             },
@@ -240,7 +251,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                                 id: 7,
                                 title: 'Without Me',
                                 artist: 'Halsey',
-                                url: 'https://samplesongs.netlify.app/Without%20Me.mp3',
+                                url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/01_-_Poison_Root.wav?se=2025-08-12T10%3A31%3A45Z&sp=r&sv=2025-05-05&sr=b&sig=%2BVMDOIeM6dVvP3nworyljRdjKH98wknHO6m7DjI6nJg%3D',
                                 artwork: 'https://samplesongs.netlify.app/album-arts/without-me.jpg',
                                 duration: 250,  // Update with accurate duration if needed
                             },
@@ -253,8 +264,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         coverImage: 'https://picsum.photos/id/1025/300/300',
                         description: 'Timeless public domain classical pieces.',
                         tracks: [
-                            { id: 8, title: 'Beethoven – Moonlight Sonata 1st Movement', artist: 'Ludwig van Beethoven', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Feelin%20Good.mp3', duration: 360 },
-                            { id: 9, title: 'Chopin – Nocturne Op.9 No.2', artist: 'Frédéric Chopin', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/AcidJazz.mp3', duration: 320 },
+                            { id: 8, title: 'Beethoven – Moonlight Sonata 1st Movement', artist: 'Ludwig van Beethoven', url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/02_-_Proud.wav?se=2025-08-12T10%3A31%3A45Z&sp=r&sv=2025-05-05&sr=b&sig=oIC0HbeAGqVVglczXJQ93EW6cK24geEtvNx1b9yudhc%3D', duration: 360 },
+                            { id: 9, title: 'Chopin – Nocturne Op.9 No.2', artist: 'Frédéric Chopin', url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/03_-_County.wav?se=2025-08-12T10%3A31%3A45Z&sp=r&sv=2025-05-05&sr=b&sig=//8nilMLRUPi5DvZRYd0z57A6aXxJUAB4/NymkIlYco%3D', duration: 320 },
                         ],
                     },
                     {
@@ -264,8 +275,8 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         coverImage: 'https://picsum.photos/id/237/300/300',
                         description: 'Powerful, cinematic public domain sounds.',
                         tracks: [
-                            { id: 10, title: 'Epic Drama', artist: 'FreePD Artist', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/AhDah.mp3', duration: 180 },
-                            { id: 11, title: 'Triumphant March', artist: 'FreePD Artist', url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Angels%20We%20Have%20Heard.mp3', duration: 200 },
+                            { id: 10, title: 'Epic Drama', artist: 'FreePD Artist', url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/04_-_Bobby.wav?se=2025-08-12T10%3A31%3A45Z&sp=r&sv=2025-05-05&sr=b&sig=bL3Eao5/G4M5gPmicnEfO2cgy0b0XENVzwzEO1TDf7Y%3D', duration: 180 },
+                            { id: 11, title: 'Triumphant March', artist: 'FreePD Artist', url: 'https://cantileverstagingstorage.blob.core.windows.net/media/tracks/Eminem_-_Houdini_Official_Music_Video.mp3?se=2025-08-12T10%3A31%3A45Z&sp=r&sv=2025-05-05&sr=b&sig=94oJzpaiXy6X%2B7vVgBfIRQYElp5shWQ0rlGnqHAq8hc%3D', duration: 200 },
                         ],
                     }
 
@@ -285,6 +296,7 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         title: track.title,
                         artist: track.artist,
                         url: track.url,
+                        duration: track.duration
                     }))
                 );
                 setIsLoading(false);
@@ -367,7 +379,13 @@ export const MusicProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const resetPlayer = async () => {
         try {
+            await tracker.current.endCurrentSession();
             await TrackPlayer.reset();
+            setCurrentTrack(null);
+            setActiveAlbum(null);
+            setTrackIndex(null);
+            setQueueLength(0);
+            setIsPlaying(false);
         } catch (error) {
             console.error('Failed to reset player:', error);
         }

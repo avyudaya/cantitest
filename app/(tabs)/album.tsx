@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useMusic } from '../../components/MusicProvider';
 
@@ -11,6 +11,15 @@ interface Track {
   artist: string;
   url: string;
   duration: number;
+}
+
+interface Album {
+    id: number;
+    title: string;
+    artist: string;
+    coverImage: string;
+    description: string;
+    tracks: Track[];
 }
 
 export default function ActiveAlbum() {
@@ -25,23 +34,10 @@ export default function ActiveAlbum() {
     isPlaying,
   } = useMusic();
   const router = useRouter();
-  const [localActiveAlbum, setLocalActiveAlbum] = useState(activeAlbum);
-  const haFocsed = useRef(true);
+  const [localActiveAlbum, setLocalActiveAlbum] = useState<Album | null>(null);
   const isStale = localActiveAlbum?.id !== activeAlbum?.id;
 
-  useFocusEffect(
-    useCallback(() => {
-      if (haFocsed.current) {
-        setLocalActiveAlbum(activeAlbum);
-      }
-
-      return () => {
-        haFocsed.current = false;
-      };
-    }, [activeAlbum])
-  );
-
-  if (!localActiveAlbum || !activeAlbum) {
+  if (!localActiveAlbum) {
     return (
       <View style={[styles.container, styles.centered]}>
         <Text style={styles.emptyText}>No album is currently active</Text>
